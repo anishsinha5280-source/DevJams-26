@@ -1,8 +1,25 @@
 ﻿# Cybersecurity Risk Prioritization System
 
+**Built for [DevJams'26](https://devjams.dscvit.com/), GDG on Campus VIT Vellore.**
+
+**Team:**
+- Samyak Jain
+- Mithul Ram Sundaresan
+- Anish Somnath Sinha
+- Samarth Sohane
+
+**Track:** Open Innovation
+
 **Cybersecurity Risk Prioritization System** is an end-to-end web application designed for IT security teams, DevSecOps engineers, and SMBs operating under strict remediation time budgets (e.g., 5.0 hours/week). 
 
 Instead of traditional top-down greedy ordering (which blindly consumes the entire time budget on massive, low-efficiency patches), this system implements a **0/1 Knapsack Dynamic Programming Optimizer** to identify the exact combination of remediation actions that maximizes global risk reduction within the user's available time constraints.
+
+---
+
+## Prerequisites
+
+- Python 3.11+
+- Node.js 18+
 
 ---
 
@@ -37,59 +54,56 @@ Instead of traditional top-down greedy ordering (which blindly consumes the enti
 ---
 
 ## Project Structure
-
-```
 DevJams/
 ├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── vulnerabilities.py   # CRUD, CSV upload, summary metrics
-│   │   │   ├── optimize.py          # 0/1 Knapsack & comparison endpoint
-│   │   │   └── demo.py              # Demo dataset seeding & reset
-│   │   ├── services/
-│   │   │   ├── risk_calculator.py   # Transparent deterministic formula
-│   │   │   ├── optimizer.py         # 0/1 Knapsack DP & greedy baseline
-│   │   │   ├── explainability.py    # Opportunity cost generator
-│   │   │   ├── historical_service.py# Historical variance learning
-│   │   │   └── csv_handler.py       # CSV validation & parsing
-│   │   ├── config.py
-│   │   ├── database.py              # SQLite connection & schema init
-│   │   ├── main.py                  # FastAPI app & CORS configuration
-│   │   ├── models.py / schemas.py   # Pydantic data schemas
-│   │   ├── seed_data.py             # 20 CVE benchmark dataset
-│   │   └── seed_history.py          # Historical variance seed data
-│   ├── tests/
-│   │   ├── test_risk_calculator.py  # Formula & multiplier unit tests
-│   │   ├── test_optimizer.py        # Knapsack correctness & edge cases
-│   │   ├── test_csv_handler.py      # CSV validation & malformed row tests
-│   │   └── test_api.py              # End-to-end FastAPI endpoint tests
-│   └── requirements.txt
+│ ├── app/
+│ │ ├── api/
+│ │ │ ├── vulnerabilities.py # CRUD, CSV upload, summary metrics
+│ │ │ ├── optimize.py # 0/1 Knapsack & comparison endpoint
+│ │ │ └── demo.py # Demo dataset seeding & reset
+│ │ ├── services/
+│ │ │ ├── risk_calculator.py # Transparent deterministic formula
+│ │ │ ├── optimizer.py # 0/1 Knapsack DP & greedy baseline
+│ │ │ ├── explainability.py # Opportunity cost generator
+│ │ │ ├── historical_service.py# Historical variance learning
+│ │ │ └── csv_handler.py # CSV validation & parsing
+│ │ ├── config.py
+│ │ ├── database.py # SQLite connection & schema init
+│ │ ├── main.py # FastAPI app & CORS configuration
+│ │ ├── schemas.py # Pydantic data schemas
+│ │ ├── seed_data.py # 20 CVE benchmark dataset
+│ │ └── seed_history.py # Historical variance seed data
+│ ├── tests/
+│ │ ├── test_risk_calculator.py # Formula & multiplier unit tests
+│ │ ├── test_optimizer.py # Knapsack correctness & edge cases
+│ │ ├── test_csv_handler.py # CSV validation & malformed row tests
+│ │ └── test_api.py # End-to-end FastAPI endpoint tests
+│ └── requirements.txt
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Header.jsx
-│   │   │   ├── MetricsOverview.jsx
-│   │   │   ├── TimeBudgetControl.jsx
-│   │   │   ├── StrategyComparison.jsx
-│   │   │   ├── RecommendedPlan.jsx
-│   │   │   ├── SkippedAnalysis.jsx
-│   │   │   ├── Visualizations.jsx
-│   │   │   ├── VulnerabilityTable.jsx
-│   │   │   ├── AddEditModal.jsx
-│   │   │   ├── CsvUploadModal.jsx
-│   │   │   ├── RiskFormulaModal.jsx
-│   │   │   └── CompleteTaskModal.jsx
-│   │   ├── services/
-│   │   │   └── api.js               # Frontend API client
-│   │   ├── App.jsx                  # Main application orchestrator
-│   │   ├── index.css                # Tailwind CSS styling & light theme
-│   │   └── main.jsx
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.js
+│ ├── src/
+│ │ ├── components/
+│ │ │ ├── Header.jsx
+│ │ │ ├── MetricsOverview.jsx
+│ │ │ ├── TimeBudgetControl.jsx
+│ │ │ ├── StrategyComparison.jsx
+│ │ │ ├── RecommendedPlan.jsx
+│ │ │ ├── SkippedAnalysis.jsx
+│ │ │ ├── Visualizations.jsx
+│ │ │ ├── VulnerabilityTable.jsx
+│ │ │ ├── AddEditModal.jsx
+│ │ │ ├── CsvUploadModal.jsx
+│ │ │ ├── RiskFormulaModal.jsx
+│ │ │ └── CompleteTaskModal.jsx
+│ │ ├── services/
+│ │ │ └── api.js # Frontend API client
+│ │ ├── App.jsx # Main application orchestrator
+│ │ ├── index.css # Tailwind CSS styling & light theme
+│ │ └── main.jsx
+│ ├── index.html
+│ ├── package.json
+│ └── vite.config.js
 ├── pytest.ini
 └── README.md
-```
 
 ---
 
