@@ -1,0 +1,26 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Local SQLite DB - regenerated on first run
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+
+# OS / editor junk
+.DS_Store
+.vscode/
+.idea/
+
+# Frontend safety net (frontend/ already has its own copy of this)
+node_modules/
+dist/
