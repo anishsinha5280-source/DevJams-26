@@ -7,11 +7,17 @@ from app.schemas import (
 )
 from app.services.risk_calculator import calculate_vulnerability_risk
 from app.services.csv_handler import parse_and_validate_csv, SAMPLE_CSV_TEMPLATE
-from app.services.historical_service import record_task_completion
+from app.services.historical_service import (
+    record_task_completion,
+    get_feedback_counts,
+    get_feedback_count_for_vuln,
+    undo_latest_feedback,
+    clear_all_feedback_for_vuln
+)
 
 router = APIRouter(prefix="/vulnerabilities", tags=["Vulnerabilities"])
 
-def enrich_vulnerability_record(row: Dict[str, Any]) -> VulnerabilityResponse:
+def enrich_vulnerability_record(row: Dict[str, Any], feedback_counts: Optional[Dict[str, int]] = None) -> VulnerabilityResponse:
     risk_val, breakdown = calculate_vulnerability_risk(
         cvss_score=row["cvss_score"],
         epss_score=row["epss_score"],
@@ -19,8 +25,14 @@ def enrich_vulnerability_record(row: Dict[str, Any]) -> VulnerabilityResponse:
         asset_criticality=row["asset_criticality"],
         estimated_hours=row["estimated_hours"]
     )
+    vuln_id = row["vulnerability_id"]
+    if feedback_counts is not None:
+        fb_cnt = feedback_counts.get(vuln_id, 0)
+    else:
+        fb_cnt = get_feedback_count_for_vuln(vuln_id)
+        
     return VulnerabilityResponse(
-        vulnerability_id=row["vulnerability_id"],
+        vulnerability_id=vuln_id,
         title=row["title"],
         severity=row["severity"],
         cvss_score=row["cvss_score"],
@@ -36,7 +48,8 @@ def enrich_vulnerability_record(row: Dict[str, Any]) -> VulnerabilityResponse:
         remediation_steps=row.get("remediation_steps", "") or "",
         created_at=str(row.get("created_at", "")),
         calculated_risk=risk_val,
-        risk_breakdown=breakdown
+        risk_breakdown=breakdown,
+        feedback_count=fb_cnt
     )
 
 @router.get("", response_model=List[VulnerabilityResponse])
@@ -61,7 +74,8 @@ def get_vulnerabilities(
         
     query += " ORDER BY cvss_score DESC, created_at DESC"
     rows = execute_query(query, tuple(params))
-    return [enrich_vulnerability_record(r) for r in rows]
+    fb_counts = get_feedback_counts()
+    return [enrich_vulnerability_record(r, fb_counts) for r in rows]
 
 @router.get("/metrics/summary")
 def get_metrics_summary():
@@ -70,7 +84,8 @@ def get_metrics_summary():
     pending_rows = [r for r in rows if r["status"] == "pending"]
     completed_rows = [r for r in rows if r["status"] == "completed"]
     
-    enriched_pending = [enrich_vulnerability_record(r) for r in pending_rows]
+    fb_counts = get_feedback_counts()
+    enriched_pending = [enrich_vulnerability_record(r, fb_counts) for r in pending_rows]
     
     total_pending_risk = round(sum(item.calculated_risk for item in enriched_pending), 2)
     total_pending_hours = round(sum(item.estimated_hours for item in enriched_pending), 2)
@@ -201,7 +216,15 @@ def update_vulnerability(vuln_id: str, payload: VulnerabilityUpdate):
         record_task_completion(
             remediation_type=current["remediation_type"],
             estimated_hours=current["estimated_hours"],
-            actual_hours=actual_h
+            actual_hours=actual_h,
+            vulnerability_id=vuln_id
+        )
+    elif "actual_hours" in updates and updates["actual_hours"] > 0 and updates["actual_hours"] != current["actual_hours"]:
+        record_task_completion(
+            remediation_type=current["remediation_type"],
+            estimated_hours=current["estimated_hours"],
+            actual_hours=updates["actual_hours"],
+            vulnerability_id=vuln_id
         )
         
     for k, v in updates.items():
@@ -235,3 +258,29 @@ def delete_vulnerability(vuln_id: str):
         raise HTTPException(status_code=404, detail="Vulnerability not found")
     execute_write("DELETE FROM vulnerabilities WHERE vulnerability_id = ?", (vuln_id,))
     return {"message": f"Vulnerability '{vuln_id}' deleted successfully."}
+
+@router.delete("/{vuln_id}/feedback/latest")
+@router.post("/{vuln_id}/feedback/undo")
+def undo_vulnerability_feedback(vuln_id: str):
+    """Undo / remove the most recent feedback entry for this specific vulnerability."""
+    rows = execute_query("SELECT vulnerability_id FROM vulnerabilities WHERE vulnerability_id = ?", (vuln_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+    
+    success = undo_latest_feedback(vuln_id)
+    if not success:
+        return {"success": False, "message": f"No feedback history found for '{vuln_id}' to undo.", "feedback_count": 0}
+    
+    cnt = get_feedback_count_for_vuln(vuln_id)
+    return {"success": True, "message": f"Removed most recent feedback entry for '{vuln_id}'.", "feedback_count": cnt}
+
+@router.delete("/{vuln_id}/feedback")
+@router.post("/{vuln_id}/feedback/reset")
+def clear_vulnerability_feedback(vuln_id: str):
+    """Completely reset / clear all feedback history for this specific vulnerability."""
+    rows = execute_query("SELECT vulnerability_id FROM vulnerabilities WHERE vulnerability_id = ?", (vuln_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+    
+    cleared_count = clear_all_feedback_for_vuln(vuln_id)
+    return {"success": True, "message": f"Cleared {cleared_count} feedback entries for '{vuln_id}'.", "feedback_count": 0}

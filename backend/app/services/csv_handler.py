@@ -1,15 +1,14 @@
 import io
 import pandas as pd
 from typing import List, Tuple, Dict, Any
+from app.services.enrichment_service import enrich_cve
 
-REQUIRED_COLUMNS = ['title', 'cvss_score', 'asset_name', 'estimated_hours']
-
-SAMPLE_CSV_TEMPLATE = """vulnerability_id,title,severity,cvss_score,epss_score,cisa_kev,asset_name,asset_criticality,remediation_type,estimated_hours,description,remediation_steps
-CVE-2024-3094,XZ Utils Liblzma Backdoor,Critical,10.0,0.95,true,SSH Gateway Prod,Critical,Patch,6.0,Malicious code discovered in upstream tarballs of xz-utils.,Downgrade xz-utils package to 5.4.6 and restart sshd services.
-CVE-2024-21413,Microsoft Outlook Moniker Link RCE,High,8.8,0.82,true,Executive Workstations,High,Patch,1.5,CVSS 8.8 Remote Code Execution vulnerability in Outlook.,Deploy Microsoft KB5034763 patch across all Windows fleet.
-CVE-2023-38606,WebKit Kernel State Manipulation,High,8.2,0.65,false,Customer Portal API,High,Configuration,1.0,WebKit flaw permitting arbitrary kernel memory manipulation.,Update Safari/WebKit rendering framework and restart proxy.
-CVE-2024-38077,Windows Remote Desktop Licensing RCE,Critical,9.8,0.78,true,Internal Jump Host,Critical,Isolation,2.0,Critical RCE vulnerability in Remote Desktop Licensing service.,Disable Remote Desktop Licensing Service or isolate on private subnet.
-CVE-2024-28987,SolarWinds ARM Hardcoded Credential,High,8.6,0.55,false,Network Monitoring Server,Medium,Credential Rotation,1.0,Hardcoded credential vulnerability in Access Rights Manager.,Rotate admin secret keys and apply vendor hotfix HF-03.
+SAMPLE_CSV_TEMPLATE = """cve_id,asset_criticality
+CVE-2021-44228,Critical
+CVE-2024-21413,High
+CVE-2024-3094,Critical
+CVE-2023-38606,Medium
+CVE-2024-38077,Critical
 """
 
 def parse_and_validate_csv(csv_content: str) -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -26,9 +25,37 @@ def parse_and_validate_csv(csv_content: str) -> Tuple[List[Dict[str, Any]], List
         
     df.columns = [c.strip().lower() for c in df.columns]
     
-    missing_required = [col for col in REQUIRED_COLUMNS if col not in df.columns]
-    if missing_required:
-        return [], [f"Missing mandatory CSV columns: {', '.join(missing_required)}. Required: {', '.join(REQUIRED_COLUMNS)}"]
+    # Check if this is the simplified schema (cve_id or vulnerability_id)
+    is_simplified = "cve_id" in df.columns or ("vulnerability_id" in df.columns and "cvss_score" not in df.columns and "title" not in df.columns)
+    
+    if is_simplified:
+        id_col = "cve_id" if "cve_id" in df.columns else "vulnerability_id"
+        for index, row in df.iterrows():
+            row_num = index + 2
+            row_dict = row.to_dict()
+            cve_raw = str(row_dict.get(id_col, '')).strip()
+            
+            if not cve_raw or cve_raw.lower() == 'nan':
+                errors.append(f"Row {row_num}: '{id_col}' is empty.")
+                continue
+                
+            crit_raw = str(row_dict.get('asset_criticality', 'Medium')).strip().capitalize()
+            if crit_raw not in ['Critical', 'High', 'Medium', 'Low']:
+                crit_raw = 'Medium'
+                
+            try:
+                enriched = enrich_cve(cve_raw, crit_raw)
+                valid_records.append(enriched)
+            except Exception as e:
+                errors.append(f"Row {row_num}: Error enriching {cve_raw}: {str(e)}")
+                
+        return valid_records, errors
+        
+    # Check if this is the legacy full format
+    required_full = ['title', 'cvss_score', 'asset_name', 'estimated_hours']
+    missing_required = [col for col in required_full if col not in df.columns]
+    if missing_required and "cve_id" not in df.columns:
+        return [], [f"Missing mandatory CSV columns: Expected 'cve_id,asset_criticality' or full schema ({', '.join(required_full)})."]
         
     for index, row in df.iterrows():
         row_num = index + 2
@@ -40,7 +67,7 @@ def parse_and_validate_csv(csv_content: str) -> Tuple[List[Dict[str, Any]], List
                 errors.append(f"Row {row_num}: 'title' is empty.")
                 continue
                 
-            vuln_id = str(row_dict.get('vulnerability_id', '')).strip()
+            vuln_id = str(row_dict.get('vulnerability_id', '') or row_dict.get('cve_id', '')).strip()
             if not vuln_id or vuln_id.lower() == 'nan':
                 vuln_id = f"VULN-CSV-{row_num:03d}"
                 
@@ -103,25 +130,23 @@ def parse_and_validate_csv(csv_content: str) -> Tuple[List[Dict[str, Any]], List
             if steps.lower() == 'nan':
                 steps = ''
                 
-            record = {
-                'vulnerability_id': vuln_id,
-                'title': title,
-                'severity': sev_raw,
-                'cvss_score': round(cvss, 1),
-                'epss_score': round(epss, 3),
-                'cisa_kev': 1 if cisa_kev else 0,
-                'asset_name': asset_name,
-                'asset_criticality': crit_raw,
-                'remediation_type': rem_type,
-                'estimated_hours': round(hours, 2),
-                'actual_hours': 0.0,
-                'status': 'pending',
-                'description': desc,
-                'remediation_steps': steps
-            }
-            valid_records.append(record)
-            
-        except Exception as e:
-            errors.append(f"Row {row_num}: Unexpected parsing error: {str(e)}")
+            valid_records.append({
+                "vulnerability_id": vuln_id,
+                "title": title,
+                "severity": sev_raw,
+                "cvss_score": round(cvss, 1),
+                "epss_score": round(epss, 3),
+                "cisa_kev": 1 if cisa_kev else 0,
+                "asset_name": asset_name,
+                "asset_criticality": crit_raw,
+                "remediation_type": rem_type,
+                "estimated_hours": round(hours, 2),
+                "actual_hours": 0.0,
+                "status": "pending",
+                "description": desc,
+                "remediation_steps": steps
+            })
+        except Exception as ex:
+            errors.append(f"Row {row_num}: Unexpected error: {str(ex)}")
             
     return valid_records, errors

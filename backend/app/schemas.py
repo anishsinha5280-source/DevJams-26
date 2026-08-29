@@ -72,6 +72,7 @@ class VulnerabilityUpdate(BaseModel):
 class VulnerabilityResponse(VulnerabilityBase):
     calculated_risk: float
     risk_breakdown: RiskBreakdown
+    feedback_count: int = 0
     created_at: Optional[str] = None
 
 class HistoricalAdjustment(BaseModel):

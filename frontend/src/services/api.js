@@ -76,6 +76,28 @@ export async function deleteVulnerability(id) {
   return res.json();
 }
 
+export async function undoFeedback(id) {
+  const res = await fetch(`${API_BASE}/vulnerabilities/${encodeURIComponent(id)}/feedback/latest`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to undo feedback');
+  }
+  return res.json();
+}
+
+export async function clearFeedback(id) {
+  const res = await fetch(`${API_BASE}/vulnerabilities/${encodeURIComponent(id)}/feedback`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to clear feedback');
+  }
+  return res.json();
+}
+
 export async function uploadCsv(file) {
   const formData = new FormData();
   formData.append('file', file);

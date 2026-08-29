@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, Download, AlertCircle, CheckCircle, Sparkles, Shield } from 'lucide-react';
 import { uploadCsv } from '../services/api';
 
 export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
@@ -56,15 +56,28 @@ export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
 
         <div className="p-5 space-y-4 text-xs">
           {/* Instructions */}
-          <p className="text-slate-600 leading-relaxed dark:text-slate-300">
-            Upload your vulnerability scanner findings in CSV format. Required columns: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800 dark:bg-slate-700 dark:text-slate-200">title</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800 dark:bg-slate-700 dark:text-slate-200">cvss_score</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800 dark:bg-slate-700 dark:text-slate-200">asset_name</code>, <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800 dark:bg-slate-700 dark:text-slate-200">estimated_hours</code>.
-          </p>
+          <div className="space-y-2">
+            <p className="text-slate-600 leading-relaxed dark:text-slate-300">
+              Upload your custom vulnerability scan using the simplified schema containing only:
+            </p>
+            <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-[11px] border border-slate-700">
+              <div className="text-indigo-400 font-bold">cve_id,asset_criticality</div>
+              <div className="text-slate-300">CVE-2021-44228,Critical</div>
+              <div className="text-slate-300">CVE-2024-21413,High</div>
+            </div>
+            <div className="bg-indigo-50 border border-indigo-200/80 rounded-lg p-2.5 flex items-start space-x-2 text-[11px] text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 dark:text-indigo-400" />
+              <span>
+                <strong>Automated Live Intelligence:</strong> The backend automatically extracts CVSS base scores from <strong>NIST NVD</strong>, exploit probabilities from <strong>FIRST EPSS</strong>, and actively exploited status from <strong>CISA KEV</strong>.
+              </span>
+            </div>
+          </div>
 
           {/* Download Template */}
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between dark:bg-slate-700/50 dark:border-slate-600">
             <div className="flex items-center space-x-2">
               <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Need a sample format?</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Download sample template</span>
             </div>
             <a
               href="/api/vulnerabilities/template.csv"
@@ -72,7 +85,7 @@ export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
               className="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
             >
               <Download className="w-3.5 h-3.5 mr-1" />
-              Download Template
+              Download CSV
             </a>
           </div>
 
@@ -89,7 +102,7 @@ export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
               {file ? file.name : 'Click to select or drag & drop .csv file'}
             </span>
             <span className="text-[11px] text-slate-400 mt-1 block dark:text-slate-500">
-              {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Supports standard Nessus / Qualys / Custom CSV exports'}
+              {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Accepts simplified CVE CSV or standard vulnerability scanner export'}
             </span>
           </div>
 
@@ -105,7 +118,7 @@ export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 space-y-1 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
               <div className="flex items-center font-bold">
                 <CheckCircle className="w-4 h-4 mr-1.5" />
-                Successfully imported {result.successfully_imported} vulnerabilities.
+                Successfully imported and enriched {result.successfully_imported} vulnerabilities.
               </div>
               {result.errors?.length > 0 && (
                 <div className="text-[11px] text-amber-800 mt-1 pt-1 border-t border-emerald-200 dark:text-amber-300 dark:border-emerald-800">
@@ -134,7 +147,7 @@ export default function CsvUploadModal({ isOpen, onClose, onUploadSuccess }) {
               disabled={!file || isUploading}
               className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              {isUploading ? 'Importing...' : 'Upload & Process'}
+              {isUploading ? 'Enriching & Importing...' : 'Upload & Enrich'}
             </button>
           </div>
         </div>

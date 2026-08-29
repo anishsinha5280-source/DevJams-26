@@ -5,7 +5,7 @@ export default function SkippedAnalysis({ skippedTasks, availableHours, onViewFo
   if (!skippedTasks || skippedTasks.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-6 text-center dark:bg-slate-800 dark:border-slate-700">
-        <p className="text-xs text-slate-500 dark:text-slate-400">All candidate findings fit within the current time allocation.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">All candidate findings fit within the current time allocation (no deferred items).</p>
       </div>
     );
   }
@@ -33,7 +33,7 @@ export default function SkippedAnalysis({ skippedTasks, availableHours, onViewFo
           <div className="flex items-center space-x-2 mb-2">
             <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              High & Critical Findings Skipped ({highCritSkipped.length})
+              High & Critical Findings Deferred ({highCritSkipped.length})
             </h4>
             <span className="text-xs text-slate-500 font-normal dark:text-slate-400">
               — Deterministic Opportunity Cost Rationale
@@ -89,11 +89,11 @@ export default function SkippedAnalysis({ skippedTasks, availableHours, onViewFo
         </div>
       )}
 
-      {/* Other Skipped Findings */}
+      {/* Other Deferred Findings */}
       {otherSkipped.length > 0 && (
         <div className="mt-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 dark:text-slate-400">
-            Other Lower Risk Findings ({otherSkipped.length})
+            Other Lower Risk Findings Deferred ({otherSkipped.length})
           </h4>
           <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:divide-slate-700">
             {otherSkipped.slice(0, 8).map((task) => (

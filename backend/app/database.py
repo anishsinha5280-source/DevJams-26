@@ -35,10 +35,11 @@ def init_db():
     );
     """)
     
-    # Historical Adjustments table
+    # Historical Adjustments table (with vulnerability_id tracking)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS historical_adjustments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vulnerability_id TEXT,
         remediation_type TEXT NOT NULL,
         estimated_hours REAL NOT NULL,
         actual_hours REAL NOT NULL,
@@ -46,6 +47,12 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+    
+    # Run migration in case table was created previously without vulnerability_id
+    try:
+        cursor.execute("ALTER TABLE historical_adjustments ADD COLUMN vulnerability_id TEXT")
+    except Exception:
+        pass
     
     conn.commit()
     conn.close()

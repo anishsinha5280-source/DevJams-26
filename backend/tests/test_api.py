@@ -1,4 +1,5 @@
 import pytest
+import io
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import init_db
@@ -26,6 +27,7 @@ def test_demo_load_and_get_vulnerabilities():
     assert len(vulns) == 20
     assert "calculated_risk" in vulns[0]
     assert "risk_breakdown" in vulns[0]
+    assert "feedback_count" in vulns[0]
 
 def test_run_optimization_endpoint():
     client.post("/api/demo/load")
@@ -74,3 +76,56 @@ def test_vulnerability_crud_flow():
     # Delete
     del_res = client.delete("/api/vulnerabilities/TEST-VULN-999")
     assert del_res.status_code == 200
+
+def test_feedback_history_and_undo_reset_endpoints():
+    client.post("/api/demo/load")
+    
+    # Complete a vulnerability with actual hours to generate feedback
+    vuln_id = "CVE-2024-3094"
+    update_res = client.put(f"/api/vulnerabilities/{vuln_id}", json={
+        "status": "completed",
+        "actual_hours": 7.5
+    })
+    assert update_res.status_code == 200
+    
+    # Check feedback count
+    get_res = client.get("/api/vulnerabilities")
+    assert get_res.status_code == 200
+    vulns = get_res.json()
+    target = next((v for v in vulns if v["vulnerability_id"] == vuln_id), None)
+    assert target is not None
+    assert target["feedback_count"] >= 1
+    
+    # Undo latest feedback
+    undo_res = client.delete(f"/api/vulnerabilities/{vuln_id}/feedback/latest")
+    assert undo_res.status_code == 200
+    assert undo_res.json()["success"] is True
+    
+    # Reset/clear all feedback
+    reset_res = client.delete(f"/api/vulnerabilities/{vuln_id}/feedback")
+    assert reset_res.status_code == 200
+    assert reset_res.json()["feedback_count"] == 0
+
+def test_simplified_csv_upload_and_enrichment():
+    csv_content = """cve_id,asset_criticality
+CVE-2021-44228,Critical
+CVE-2024-21413,High
+"""
+    file_bytes = io.BytesIO(csv_content.encode("utf-8"))
+    upload_res = client.post(
+        "/api/vulnerabilities/upload-csv",
+        files={"file": ("test_cves.csv", file_bytes, "text/csv")}
+    )
+    assert upload_res.status_code == 200
+    data = upload_res.json()
+    assert data["successfully_imported"] == 2
+    
+    # Verify enriched fields in database
+    get_res = client.get("/api/vulnerabilities?search=CVE-2021-44228")
+    assert get_res.status_code == 200
+    records = get_res.json()
+    assert len(records) >= 1
+    log4j = records[0]
+    assert log4j["vulnerability_id"] == "CVE-2021-44228"
+    assert log4j["cvss_score"] == 10.0
+    assert log4j["cisa_kev"] is True or log4j["cisa_kev"] == 1

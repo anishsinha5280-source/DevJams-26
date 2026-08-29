@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
+import DataSourceSelector from './components/DataSourceSelector';
 import MetricsOverview from './components/MetricsOverview';
 import TimeBudgetControl from './components/TimeBudgetControl';
 import StrategyComparison from './components/StrategyComparison';
@@ -19,7 +20,9 @@ import {
   loadDemoData,
   createVulnerability,
   updateVulnerability,
-  deleteVulnerability
+  deleteVulnerability,
+  undoFeedback,
+  clearFeedback
 } from './services/api';
 
 import { 
@@ -112,11 +115,7 @@ export default function App() {
     loadAllData();
   }, []);
 
-  // Recalculate optimization when budget changes
-  const handleRunOptimization = () => {
-    loadAllData(availableHours);
-  };
-
+  // Automatic recalculation when available hours change (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
       loadAllData(availableHours);
@@ -207,6 +206,30 @@ export default function App() {
     }
   };
 
+  // Point 2: Undo latest feedback entry for a specific vulnerability
+  const handleUndoFeedback = async (vuln) => {
+    try {
+      const res = await undoFeedback(vuln.vulnerability_id);
+      showToast(res.message || `Undid latest feedback for ${vuln.vulnerability_id}`);
+      await loadAllData();
+    } catch (err) {
+      showToast(err.message || 'Failed to undo feedback', 'error');
+    }
+  };
+
+  // Point 2: Clear all feedback history for a specific vulnerability
+  const handleClearFeedback = async (vuln) => {
+    if (confirm(`Clear all feedback history for ${vuln.vulnerability_id}? (Finding will remain intact)`)) {
+      try {
+        const res = await clearFeedback(vuln.vulnerability_id);
+        showToast(res.message || `Cleared feedback history for ${vuln.vulnerability_id}`);
+        await loadAllData();
+      } catch (err) {
+        showToast(err.message || 'Failed to clear feedback', 'error');
+      }
+    }
+  };
+
   // Delete finding
   const handleDelete = async (vuln) => {
     if (confirm(`Are you sure you want to delete finding ${vuln.vulnerability_id}?`)) {
@@ -279,21 +302,26 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Point 3: Data Source Quick-Start Choice: Demo vs Upload */}
+        <DataSourceSelector
+          onLoadDemo={handleLoadDemo}
+          onOpenUpload={() => setIsUploadModalOpen(true)}
+          isDemoLoading={isDemoLoading}
+        />
+
         {/* KPI Metrics */}
         <MetricsOverview summary={metricsSummary} comparison={comparison} />
 
-        {/* Time Budget Controller */}
+        {/* Time Budget Controller (Point 1: button removed, auto-recalculates on edit) */}
         <TimeBudgetControl
           availableHours={availableHours}
           setAvailableHours={setAvailableHours}
-          onRunOptimization={handleRunOptimization}
-          isLoading={isLoading}
         />
 
         {/* Strategy Comparison Component */}
         <StrategyComparison comparison={comparison} />
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Point 4: Skipped renamed to Deferred) */}
         <div className="flex border-b border-slate-200 gap-1 sm:gap-2 dark:border-slate-700">
           <button
             onClick={() => setActiveTab('plan')}
@@ -316,7 +344,7 @@ export default function App() {
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Skipped Findings ({comparison?.knapsack_strategy?.skipped_tasks?.length || 0})</span>
+            <span>Deferred Findings ({comparison?.knapsack_strategy?.skipped_tasks?.length || 0})</span>
           </button>
 
           <button
@@ -369,11 +397,12 @@ export default function App() {
           </div>
         )}
 
+        {/* Point 4: Deferred Findings */}
         {activeTab === 'skipped' && (
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Skipped Vulnerabilities & Opportunity Cost Analysis
+                Deferred Vulnerabilities & Opportunity Cost Analysis
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Transparent rationale explaining why specific findings were deferred to maintain overall security posture within budget.
@@ -414,7 +443,7 @@ export default function App() {
                   Complete Vulnerability Inventory
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Edit remediation effort, toggle completion status, or inspect transparent risk calculations.
+                  Edit remediation effort, inspect transparent risk calculations, track historical variance feedback, or toggle completion.
                 </p>
               </div>
               <button
@@ -432,6 +461,8 @@ export default function App() {
               onEdit={(vuln) => { setEditingVuln(vuln); setIsAddModalOpen(true); }}
               onDelete={handleDelete}
               onViewFormula={handleOpenFormula}
+              onUndoFeedback={handleUndoFeedback}
+              onClearFeedback={handleClearFeedback}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               statusFilter={statusFilter}
@@ -456,7 +487,7 @@ export default function App() {
         onClose={() => setIsUploadModalOpen(false)}
         onUploadSuccess={() => {
           setIsUploadModalOpen(false);
-          showToast('CSV uploaded and processed successfully');
+          showToast('CSV uploaded and enriched successfully via NIST NVD, FIRST EPSS & CISA KEV');
           loadAllData();
         }}
       />

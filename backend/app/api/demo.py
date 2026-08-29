@@ -31,14 +31,14 @@ def load_demo_dataset():
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, vuln_params)
     
-    # Insert historical adjustments
+    # Insert historical adjustments with vulnerability_id
     hist_params = [
-        (h["remediation_type"], h["estimated_hours"], h["actual_hours"], h["variance_ratio"])
+        (h.get("vulnerability_id", ""), h["remediation_type"], h["estimated_hours"], h["actual_hours"], h["variance_ratio"])
         for h in DEMO_HISTORICAL_DATA
     ]
     execute_many("""
-        INSERT INTO historical_adjustments (remediation_type, estimated_hours, actual_hours, variance_ratio)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO historical_adjustments (vulnerability_id, remediation_type, estimated_hours, actual_hours, variance_ratio)
+        VALUES (?, ?, ?, ?, ?)
     """, hist_params)
     
     return {
